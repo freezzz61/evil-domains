@@ -14,11 +14,10 @@ from pathlib import Path
 ITDOG_API = "https://api.github.com/repos/itdoginfo/allow-domains/contents"
 ITDOG_RAW = "https://raw.githubusercontent.com/itdoginfo/allow-domains/main"
 
-# Правильные ссылки на категории из roscomvpn-geosite
+# Оставили только заблокированные ресурсы (category-ru удалена)
 ROSCOM_BASE = "https://cdn.jsdelivr.net/gh/hydraponique/roscomvpn-geosite/release/sing-box"
 ROSCOM_CATEGORIES = [
-    "category-geoblock-ru.srs",  # Геоблокированный RU контент (то, что нужно проксировать)
-    "category-ru.srs",           # Российские домены и сервисы
+    "category-geoblock-ru.srs",  # Геоблокированный RU контент (для прокси)
 ]
 
 RUSSIA_INSIDE_EXCLUDED = {
@@ -151,7 +150,7 @@ def main() -> None:
         path = f"Services/{service}.lst"
         unique_additions[f"itdoginfo/{path}"] = add_itdog_file(path, domains)
 
-    # 2. roscomvpn-geosite (скачиваем несколько категорий)
+    # 2. roscomvpn-geosite
     for category in ROSCOM_CATEGORIES:
         url = f"{ROSCOM_BASE}/{category}"
         try:
