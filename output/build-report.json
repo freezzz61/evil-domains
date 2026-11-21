@@ -1,5 +1,5 @@
 {
-  "total_domains": 1756,
+  "total_domains": 1697,
   "unique_additions_by_source": {
     "itdoginfo/Categories/anime.lst": 42,
     "itdoginfo/Categories/block.lst": 333,
@@ -18,8 +18,7 @@
     "itdoginfo/Services/google_ai.lst": 27,
     "itdoginfo/Services/cloudflare.lst": 4,
     "itdoginfo/Services/google_play.lst": 12,
-    "hydraponique/category-geoblock-ru.srs": 450,
-    "hydraponique/category-ru.srs": 59
+    "hydraponique/category-geoblock-ru.srs": 450
   },
   "contains_ip_cidr": false
 }
