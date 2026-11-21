@@ -1,7 +1,7 @@
 {
   "total_domains": 1697,
-  "total_ipv4_subnets_raw": 964,
-  "total_ipv4_subnets_collapsed": 964,
+  "total_ipv4_subnets_raw": 115,
+  "total_ipv4_subnets_collapsed": 115,
   "domain_sources": {
     "itdoginfo/Categories/anime.lst": 42,
     "itdoginfo/Categories/block.lst": 333,
@@ -26,9 +26,7 @@
     "itdoginfo/Subnets/IPv4/telegram.lst": 10,
     "itdoginfo/Subnets/IPv4/meta.lst": 80,
     "itdoginfo/Subnets/IPv4/twitter.lst": 10,
-    "itdoginfo/Subnets/IPv4/cloudflare.lst": 15,
-    "itdoginfo/Subnets/IPv4/ovh.lst": 677,
-    "itdoginfo/Subnets/IPv4/digitalocean.lst": 172
+    "itdoginfo/Subnets/IPv4/cloudflare.lst": 15
   },
   "contains_ipv4_cidr": true,
   "contains_ipv6_cidr": false
