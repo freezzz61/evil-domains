@@ -13,7 +13,8 @@ from pathlib import Path
 
 ITDOG_API = "https://api.github.com/repos/itdoginfo/allow-domains/contents"
 ITDOG_RAW = "https://raw.githubusercontent.com/itdoginfo/allow-domains/main"
-ROSCOM_JSON = "https://github.com/aleksandrberlin/roscom-vpn/releases/latest/download/all.json"
+# Обновленная ссылка на актуальный репозиторий hydraponique
+ROSCOM_JSON = "https://raw.githubusercontent.com/hydraponique/roscomvpn-geosite/release/sing-box/all.json"
 
 RUSSIA_INSIDE_EXCLUDED = {
     "telegram.lst", "cloudflare.lst", "google_ai.lst", "google_play.lst",
@@ -27,7 +28,7 @@ SELECTED_SERVICES = [
     "cloudflare", "google_play",
 ]
 
-USER_AGENT = "evil-domains-builder/0.2"
+USER_AGENT = "evil-domains-builder/0.3"
 DOMAIN_RE = re.compile(
     r"^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)"
     r"(?:\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))*\.?$",
@@ -83,8 +84,6 @@ def parse_domain_line(line: str) -> str | None:
 def extract_domains_from_json(obj) -> set[str]:
     """
     Достаём домены из domain и domain_suffix.
-    domain_keyword намеренно не превращаем в домены — это ключевые слова,
-    а не полные имена.
     """
     found: set[str] = set()
     if isinstance(obj, dict):
@@ -125,10 +124,7 @@ def compile_srs(json_path: Path, srs_path: Path) -> None:
             check=True,
         )
     except FileNotFoundError as exc:
-        raise RuntimeError(
-            "sing-box not found in PATH. Install it before running build.py "
-            "(see the GitHub Actions workflow or https://sing-box.sagernet.org/installation/)."
-        ) from exc
+        raise RuntimeError("sing-box not found in PATH.") from exc
     except subprocess.CalledProcessError as exc:
         raise RuntimeError(f"sing-box rule-set compile failed with code {exc.returncode}") from exc
 
@@ -150,13 +146,18 @@ def main() -> None:
         path = f"Services/{service}.lst"
         unique_additions[f"itdoginfo/{path}"] = add_itdog_file(path, domains)
 
-    roscom = json.loads(fetch(ROSCOM_JSON).decode("utf-8"))
-    roscom_domains = extract_domains_from_json(roscom)
-    if not roscom_domains:
-        raise RuntimeError("roscom-vpn all.json yielded zero valid domain entries")
-    before = len(domains)
-    domains.update(roscom_domains)
-    unique_additions["roscom-vpn/all.json"] = len(domains) - before
+    # Безопасная загрузка roscom-vpn (если ссылка опять отвалится, сборка не упадет)
+    try:
+        roscom = json.loads(fetch(ROSCOM_JSON).decode("utf-8"))
+        roscom_domains = extract_domains_from_json(roscom)
+        if roscom_domains:
+            before = len(domains)
+            domains.update(roscom_domains)
+            unique_additions["hydraponique/roscomvpn-geosite"] = len(domains) - before
+        else:
+            print("Warning: roscom-vpn yielded zero valid domain entries.")
+    except Exception as e:
+        print(f"Warning: Failed to fetch or parse roscom-vpn data: {e}. Continuing without it.")
 
     if len(domains) < 100:
         raise RuntimeError(f"Suspiciously small result: only {len(domains)} domains")
@@ -192,10 +193,6 @@ def main() -> None:
 if __name__ == "__main__":
     try:
         main()
-    except (
-        urllib.error.URLError,
-        json.JSONDecodeError,
-        RuntimeError,
-    ) as exc:
+    except (urllib.error.URLError, json.JSONDecodeError, RuntimeError) as exc:
         print(f"BUILD FAILED: {exc}", file=sys.stderr)
         sys.exit(1)
