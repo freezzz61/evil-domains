@@ -55,8 +55,6 @@ SUBNET_SOURCES = [
     "meta",
     "twitter",
     "cloudflare",
-    "ovh",
-    "digitalocean",
 ]
 
 USER_AGENT = "evil-domains-builder/1.0"
