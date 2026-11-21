@@ -13,8 +13,13 @@ from pathlib import Path
 
 ITDOG_API = "https://api.github.com/repos/itdoginfo/allow-domains/contents"
 ITDOG_RAW = "https://raw.githubusercontent.com/itdoginfo/allow-domains/main"
-# Ссылка на бинарный релиз hydraponique/roscomvpn-geosite
-ROSCOM_SRS = "https://github.com/hydraponique/roscomvpn-geosite/releases/latest/download/all.srs"
+
+# Правильные ссылки на категории из roscomvpn-geosite
+ROSCOM_BASE = "https://cdn.jsdelivr.net/gh/hydraponique/roscomvpn-geosite/release/sing-box"
+ROSCOM_CATEGORIES = [
+    "category-geoblock-ru.srs",  # Геоблокированный RU контент (то, что нужно проксировать)
+    "category-ru.srs",           # Российские домены и сервисы
+]
 
 RUSSIA_INSIDE_EXCLUDED = {
     "telegram.lst", "cloudflare.lst", "google_ai.lst", "google_play.lst",
@@ -27,7 +32,7 @@ SELECTED_SERVICES = [
     "cloudflare", "google_play",
 ]
 
-USER_AGENT = "evil-domains-builder/0.4"
+USER_AGENT = "evil-domains-builder/0.5"
 DOMAIN_RE = re.compile(
     r"^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)"
     r"(?:\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))*\.?$",
@@ -132,6 +137,7 @@ def main() -> None:
     out_dir = Path("output")
     out_dir.mkdir(exist_ok=True)
 
+    # 1. itdoginfo
     for directory in ("Categories", "Services"):
         for item in github_directory(directory):
             name = item["name"]
@@ -145,33 +151,35 @@ def main() -> None:
         path = f"Services/{service}.lst"
         unique_additions[f"itdoginfo/{path}"] = add_itdog_file(path, domains)
 
-    # Скачиваем SRS от hydraponique, декомпилируем и забираем домены
-    try:
-        print("Downloading roscomvpn-geosite...")
-        roscom_srs_data = fetch(ROSCOM_SRS)
-        temp_srs = out_dir / "temp_roscom.srs"
-        temp_srs.write_bytes(roscom_srs_data)
-        
-        temp_json = out_dir / "temp_roscom.json"
-        subprocess.run(
-            ["sing-box", "rule-set", "decompile", str(temp_srs), "-o", str(temp_json)],
-            check=True,
-            capture_output=True
-        )
-        
-        roscom = json.loads(temp_json.read_text(encoding="utf-8"))
-        roscom_domains = extract_domains_from_json(roscom)
-        
-        if roscom_domains:
-            before = len(domains)
-            domains.update(roscom_domains)
-            unique_additions["hydraponique/roscomvpn-geosite"] = len(domains) - before
-            print(f"Added {len(domains) - before} unique domains from roscomvpn.")
-        
-        temp_srs.unlink()
-        temp_json.unlink()
-    except Exception as e:
-        print(f"Warning: Failed to fetch or parse roscomvpn data: {e}. Continuing without it.")
+    # 2. roscomvpn-geosite (скачиваем несколько категорий)
+    for category in ROSCOM_CATEGORIES:
+        url = f"{ROSCOM_BASE}/{category}"
+        try:
+            print(f"Downloading {category}...")
+            srs_data = fetch(url)
+            temp_srs = out_dir / f"temp_{category}"
+            temp_srs.write_bytes(srs_data)
+            
+            temp_json = out_dir / f"temp_{category}.json"
+            subprocess.run(
+                ["sing-box", "rule-set", "decompile", str(temp_srs), "-o", str(temp_json)],
+                check=True,
+                capture_output=True
+            )
+            
+            roscom = json.loads(temp_json.read_text(encoding="utf-8"))
+            roscom_domains = extract_domains_from_json(roscom)
+            
+            if roscom_domains:
+                before = len(domains)
+                domains.update(roscom_domains)
+                unique_additions[f"hydraponique/{category}"] = len(domains) - before
+                print(f"Added {len(domains) - before} unique domains from {category}.")
+            
+            temp_srs.unlink()
+            temp_json.unlink()
+        except Exception as e:
+            print(f"Warning: Failed to fetch or parse {category}: {e}. Continuing...")
 
     if len(domains) < 100:
         raise RuntimeError(f"Suspiciously small result: only {len(domains)} domains")
