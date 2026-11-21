@@ -13,8 +13,8 @@ from pathlib import Path
 
 ITDOG_API = "https://api.github.com/repos/itdoginfo/allow-domains/contents"
 ITDOG_RAW = "https://raw.githubusercontent.com/itdoginfo/allow-domains/main"
-# Обновленная ссылка на актуальный репозиторий hydraponique
-ROSCOM_JSON = "https://raw.githubusercontent.com/hydraponique/roscomvpn-geosite/release/sing-box/all.json"
+# Ссылка на бинарный релиз hydraponique/roscomvpn-geosite
+ROSCOM_SRS = "https://github.com/hydraponique/roscomvpn-geosite/releases/latest/download/all.srs"
 
 RUSSIA_INSIDE_EXCLUDED = {
     "telegram.lst", "cloudflare.lst", "google_ai.lst", "google_play.lst",
@@ -22,13 +22,12 @@ RUSSIA_INSIDE_EXCLUDED = {
     "hodca.lst", "roblox.lst", "google_meet.lst",
 }
 
-# meta и twitter уже входят в общий цикл, поэтому здесь их нет.
 SELECTED_SERVICES = [
     "telegram", "ovh", "digitalocean", "google_ai",
     "cloudflare", "google_play",
 ]
 
-USER_AGENT = "evil-domains-builder/0.3"
+USER_AGENT = "evil-domains-builder/0.4"
 DOMAIN_RE = re.compile(
     r"^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)"
     r"(?:\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))*\.?$",
@@ -82,9 +81,6 @@ def parse_domain_line(line: str) -> str | None:
 
 
 def extract_domains_from_json(obj) -> set[str]:
-    """
-    Достаём домены из domain и domain_suffix.
-    """
     found: set[str] = set()
     if isinstance(obj, dict):
         for key, value in obj.items():
@@ -132,6 +128,9 @@ def compile_srs(json_path: Path, srs_path: Path) -> None:
 def main() -> None:
     domains: set[str] = set()
     unique_additions: dict[str, int] = {}
+    
+    out_dir = Path("output")
+    out_dir.mkdir(exist_ok=True)
 
     for directory in ("Categories", "Services"):
         for item in github_directory(directory):
@@ -146,24 +145,37 @@ def main() -> None:
         path = f"Services/{service}.lst"
         unique_additions[f"itdoginfo/{path}"] = add_itdog_file(path, domains)
 
-    # Безопасная загрузка roscom-vpn (если ссылка опять отвалится, сборка не упадет)
+    # Скачиваем SRS от hydraponique, декомпилируем и забираем домены
     try:
-        roscom = json.loads(fetch(ROSCOM_JSON).decode("utf-8"))
+        print("Downloading roscomvpn-geosite...")
+        roscom_srs_data = fetch(ROSCOM_SRS)
+        temp_srs = out_dir / "temp_roscom.srs"
+        temp_srs.write_bytes(roscom_srs_data)
+        
+        temp_json = out_dir / "temp_roscom.json"
+        subprocess.run(
+            ["sing-box", "rule-set", "decompile", str(temp_srs), "-o", str(temp_json)],
+            check=True,
+            capture_output=True
+        )
+        
+        roscom = json.loads(temp_json.read_text(encoding="utf-8"))
         roscom_domains = extract_domains_from_json(roscom)
+        
         if roscom_domains:
             before = len(domains)
             domains.update(roscom_domains)
             unique_additions["hydraponique/roscomvpn-geosite"] = len(domains) - before
-        else:
-            print("Warning: roscom-vpn yielded zero valid domain entries.")
+            print(f"Added {len(domains) - before} unique domains from roscomvpn.")
+        
+        temp_srs.unlink()
+        temp_json.unlink()
     except Exception as e:
-        print(f"Warning: Failed to fetch or parse roscom-vpn data: {e}. Continuing without it.")
+        print(f"Warning: Failed to fetch or parse roscomvpn data: {e}. Continuing without it.")
 
     if len(domains) < 100:
         raise RuntimeError(f"Suspiciously small result: only {len(domains)} domains")
 
-    out_dir = Path("output")
-    out_dir.mkdir(exist_ok=True)
     json_path = out_dir / "evil-domains.json"
     srs_path = out_dir / "evil-domains.srs"
 
