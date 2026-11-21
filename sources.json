@@ -1,0 +1,24 @@
+{
+  "project": "evil-domains",
+  "description": "Aggregated domain-only sing-box ruleset",
+  "sources": {
+    "itdoginfo": "https://github.com/itdoginfo/allow-domains",
+    "roscom-vpn": "https://github.com/aleksandrberlin/roscom-vpn"
+  },
+  "selected_services": [
+    "meta",
+    "telegram",
+    "ovh",
+    "digitalocean",
+    "google_ai",
+    "cloudflare",
+    "twitter",
+    "google_play"
+  ],
+  "policy": {
+    "domains_only": true,
+    "include_ip_cidr": false,
+    "default_route": "direct",
+    "matched_route": "proxy"
+  }
+}
