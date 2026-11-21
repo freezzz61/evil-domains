@@ -33,8 +33,11 @@ DOMAIN_RE = re.compile(r"^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(
 
 def fetch(url: str) -> bytes:
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(req, timeout=45) as response:
-        data = response.read()
+    try:
+        with urllib.request.urlopen(req, timeout=45) as response:
+            data = response.read()
+    except urllib.error.HTTPError as exc:
+        raise RuntimeError(f"HTTP {exc.code} for URL: {url}") from exc
     if not data:
         raise RuntimeError(f"Empty response: {url}")
     return data
