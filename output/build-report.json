@@ -1,0 +1,34 @@
+{
+  "generated_at": "2026-11-22T15:43:21.268075+00:00",
+  "total_domains": 1697,
+  "itdog_domains": 1247,
+  "roscomvpn_domains": 772,
+  "runetfreedom_ru_blocked_domains": 80076,
+  "telegram_cidrs": 14,
+  "unique_additions_by_source": {
+    "itdoginfo/Categories/anime.lst": 42,
+    "itdoginfo/Categories/block.lst": 333,
+    "itdoginfo/Categories/geoblock.lst": 462,
+    "itdoginfo/Categories/news.lst": 183,
+    "itdoginfo/Categories/porn.lst": 51,
+    "itdoginfo/Services/discord.lst": 20,
+    "itdoginfo/Services/hdrezka.lst": 17,
+    "itdoginfo/Services/meta.lst": 18,
+    "itdoginfo/Services/tiktok.lst": 16,
+    "itdoginfo/Services/twitter.lst": 23,
+    "itdoginfo/Services/youtube.lst": 18,
+    "itdoginfo/Services/telegram.lst": 20,
+    "itdoginfo/Services/ovh.lst": 1,
+    "itdoginfo/Services/digitalocean.lst": 0,
+    "itdoginfo/Services/google_ai.lst": 27,
+    "itdoginfo/Services/cloudflare.lst": 4,
+    "itdoginfo/Services/google_play.lst": 12
+  },
+  "comparison_errors": {},
+  "happ_geosite": "evil-domains-happ.dat",
+  "happ_categories": [
+    "evil-domains",
+    "ru-blocked",
+    "category-geoblock-ru"
+  ]
+}
