@@ -3,111 +3,91 @@ name: Build evil-domains
 on:
   schedule:
     - cron: "17 3 * * *"
+
   workflow_dispatch:
+
   push:
     branches: [main]
     paths:
       - "build.py"
       - "sources.json"
-      - ".github/workflows/update.yml"
+      - ".github/workflows/Updater.yml"
 
 permissions:
   contents: write
 
+concurrency:
+  group: evil-domains-build
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: 'stable'
+          go-version: "stable"
 
       - name: Install sing-box
         run: |
+          set -euo pipefail
+
           TAG="v1.14.2"
           VER="${TAG#v}"
-          curl -fsSL -o /tmp/sing-box.tar.gz "https://github.com/SagerNet/sing-box/releases/download/${TAG}/sing-box-${VER}-linux-amd64.tar.gz"
+
+          curl -fsSL \
+            -o /tmp/sing-box.tar.gz \
+            "https://github.com/SagerNet/sing-box/releases/download/${TAG}/sing-box-${VER}-linux-amd64.tar.gz"
+
           tar -xzf /tmp/sing-box.tar.gz -C /tmp
-          sudo install -m 755 /tmp/sing-box-${VER}-linux-amd64/sing-box /usr/local/bin/sing-box
+
+          sudo install -m 755 \
+            "/tmp/sing-box-${VER}-linux-amd64/sing-box" \
+            /usr/local/bin/sing-box
+
           sing-box version
 
-      - name: Build rule-set
+      - name: Build lists, databases and comparison reports
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python build.py
-
-      - name: Build geosite.dat (Domains for OneXray)
         run: |
-          mkdir -p geosite-data
-          cp output/geosite-raw.txt geosite-data/evil-domains
-          
-          git clone --depth 1 https://github.com/v2fly/domain-list-community.git
-          cd domain-list-community
-          
-          go run ./ --datapath=../geosite-data
-          cp dlc.dat ../output/evil-domains.dat
-          cd ..
-          
-          rm -rf geosite-data domain-list-community output/geosite-raw.txt
+          set -euo pipefail
+          python build.py
 
-      - name: Build geoip.dat (IPs for OneXray)
-        run: |
-          mkdir -p geoip-data
-          cp output/geoip-raw.txt geoip-data/telegram
-          
-          git clone --depth 1 https://github.com/v2fly/geoip.git
-          cd geoip
-          
-          # Создаем config.json для новой версии v2fly/geoip
-          cat > config.json << 'EOF'
-          {
-            "input": [
-              {
-                "type": "text",
-                "action": "add",
-                "args": {
-                  "inputDir": "../geoip-data",
-                  "wantedList": ["telegram"]
-                }
-              }
-            ],
-            "output": [
-              {
-                "type": "v2rayGeoIPDat",
-                "action": "output",
-                "args": {
-                  "outputDir": "../output",
-                  "outputName": "evil-domains-geoip.dat"
-                }
-              }
-            ]
-          }
-          EOF
-          
-          go run ./ -c config.json
-          cd ..
-          
-          rm -rf geoip-data geoip output/geoip-raw.txt
-
-      - name: Upload artifacts
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: evil-domains
           path: output/
+          retention-days: 30
 
       - name: Commit and push changes
         run: |
+          set -euo pipefail
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
           git add output/
-          git diff --cached --quiet && echo "No changes to commit" && exit 0
-          git commit -m "chore: rebuild all lists (srs, dat, geoip)"
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "chore: rebuild lists, Happ geosite and source comparison"
+
           git pull --rebase origin main
           git push
