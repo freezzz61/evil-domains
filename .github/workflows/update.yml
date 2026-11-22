@@ -1,17 +1,63 @@
-# ... (начало файла без изменений) ...
+name: Build evil-domains
 
-      - name: Build geosite.dat
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "build.py"
+      - "sources.json"
+      - ".github/workflows/update.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+
+      - name: Install sing-box
+        run: |
+          TAG="v1.14.2"
+          VER="${TAG#v}"
+          curl -fsSL -o /tmp/sing-box.tar.gz "https://github.com/SagerNet/sing-box/releases/download/${TAG}/sing-box-${VER}-linux-amd64.tar.gz"
+          tar -xzf /tmp/sing-box.tar.gz -C /tmp
+          sudo install -m 755 /tmp/sing-box-${VER}-linux-amd64/sing-box /usr/local/bin/sing-box
+          sing-box version
+
+      - name: Build rule-set
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python build.py
+
+      - name: Build geosite.dat (Domains for OneXray)
         run: |
           mkdir -p geosite-data
           cp output/geosite-raw.txt geosite-data/evil-domains
+          
           git clone --depth 1 https://github.com/v2fly/domain-list-community.git
           cd domain-list-community
+          
           go run ./ --datapath=../geosite-data
           cp dlc.dat ../output/evil-domains.dat
           cd ..
+          
           rm -rf geosite-data domain-list-community output/geosite-raw.txt
 
-      - name: Build geoip.dat
+      - name: Build geoip.dat (IPs for OneXray)
         run: |
           mkdir -p geoip-data
           cp output/geoip-raw.txt geoip-data/telegram
@@ -19,7 +65,6 @@
           git clone --depth 1 https://github.com/v2fly/geoip.git
           cd geoip
           
-          # Компилируем только список Telegram
           go run ./ --input=text --output=dat --datapath=../geoip-data --outputname=telegram
           cp output/dat/telegram.dat ../output/evil-domains-geoip.dat
           cd ..
@@ -38,6 +83,6 @@
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add output/
           git diff --cached --quiet && echo "No changes to commit" && exit 0
-          git commit -m "chore: rebuild evil-domains ruleset, dat and geoip"
+          git commit -m "chore: rebuild all lists (srs, dat, geoip)"
           git pull --rebase origin main
           git push
