@@ -65,8 +65,33 @@ jobs:
           git clone --depth 1 https://github.com/v2fly/geoip.git
           cd geoip
           
-          go run ./ --input=text --output=dat --datapath=../geoip-data --outputname=telegram
-          cp output/dat/telegram.dat ../output/evil-domains-geoip.dat
+          # Создаем config.json для новой версии v2fly/geoip
+          cat > config.json << 'EOF'
+          {
+            "input": [
+              {
+                "type": "text",
+                "action": "add",
+                "args": {
+                  "inputDir": "../geoip-data",
+                  "wantedList": ["telegram"]
+                }
+              }
+            ],
+            "output": [
+              {
+                "type": "v2rayGeoIPDat",
+                "action": "output",
+                "args": {
+                  "outputDir": "../output",
+                  "outputName": "evil-domains-geoip.dat"
+                }
+              }
+            ]
+          }
+          EOF
+          
+          go run ./ -c config.json
           cd ..
           
           rm -rf geoip-data geoip output/geoip-raw.txt
