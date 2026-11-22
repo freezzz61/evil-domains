@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build evil-domains, comparison reports and Happ-compatible geosite.dat."""
+"""Build evil-domains, comparison reports and GeoSite/GeoIP databases."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import csv
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import urllib.error
@@ -43,9 +44,17 @@ RFL_GEOBLOCK_URL = f"{RFL_BASE}/geoblock/full.lst"
 TELEGRAM_CIDR_URL = "https://core.telegram.org/resources/cidr.txt"
 
 RUSSIA_INSIDE_EXCLUDED = {
-    "telegram.lst", "cloudflare.lst", "google_ai.lst", "google_play.lst",
-    "hetzner.lst", "ovh.lst", "digitalocean.lst", "cloudfront.lst",
-    "hodca.lst", "roblox.lst", "google_meet.lst",
+    "telegram.lst",
+    "cloudflare.lst",
+    "google_ai.lst",
+    "google_play.lst",
+    "hetzner.lst",
+    "ovh.lst",
+    "digitalocean.lst",
+    "cloudfront.lst",
+    "hodca.lst",
+    "roblox.lst",
+    "google_meet.lst",
 }
 
 SELECTED_SERVICES = [
@@ -175,7 +184,8 @@ def github_directory(path: str) -> list[dict]:
         raise RuntimeError(f"Unexpected GitHub API response: {path}")
 
     return [
-        item for item in data
+        item
+        for item in data
         if item.get("type") == "file"
         and item.get("name", "").endswith(".lst")
     ]
@@ -244,6 +254,76 @@ def compile_srs(json_path: Path, srs_path: Path) -> None:
     )
 
 
+def build_legacy_geoip_dat() -> None:
+    """Build the legacy Telegram GeoIP DAT."""
+
+    repo = Path("v2fly-geoip")
+
+    if repo.exists():
+        shutil.rmtree(repo)
+
+    log("Cloning v2fly/geoip...")
+
+    subprocess.run(
+        [
+            "git",
+            "clone",
+            "--depth",
+            "1",
+            "https://github.com/v2fly/geoip.git",
+            str(repo),
+        ],
+        check=True,
+    )
+
+    config = {
+        "input": [
+            {
+                "type": "text",
+                "action": "add",
+                "args": {
+                    "name": "telegram",
+                    "uri": str((OUT / "geoip-raw.txt").resolve()),
+                },
+            }
+        ],
+        "output": [
+            {
+                "type": "v2rayGeoIPDat",
+                "action": "output",
+                "args": {
+                    "outputDir": str(OUT.resolve()),
+                    "outputName": "evil-domains-geoip.dat",
+                    "wantedList": ["telegram"],
+                },
+            }
+        ],
+    }
+
+    config_path = repo / "evil-domains-geoip-config.json"
+
+    config_path.write_text(
+        json.dumps(config, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+    log("Building evil-domains-geoip.dat...")
+
+    subprocess.run(
+        [
+            "go",
+            "run",
+            "./",
+            "-c",
+            str(config_path.resolve()),
+        ],
+        cwd=repo,
+        check=True,
+    )
+
+    log("Legacy GeoIP DAT built.")
+
+
 def load_comparison_sources() -> tuple[dict[str, set[str]], dict[str, str]]:
     sources: dict[str, set[str]] = {}
     errors: dict[str, str] = {}
@@ -273,7 +353,6 @@ def build_comparison(
 ) -> None:
     COMPARISON.mkdir(parents=True, exist_ok=True)
 
-    # Add our final aggregate as a separate comparison participant.
     all_sources = dict(sources)
     all_sources["evil_domains"] = evil_domains
 
@@ -353,9 +432,15 @@ def build_comparison(
         "w", newline="", encoding="utf-8"
     ) as file:
         fields = [
-            "group", "source_a", "source_b",
-            "domains_a", "domains_b", "intersection",
-            "only_a", "only_b", "jaccard_percent",
+            "group",
+            "source_a",
+            "source_b",
+            "domains_a",
+            "domains_b",
+            "intersection",
+            "only_a",
+            "only_b",
+            "jaccard_percent",
         ]
         writer = csv.DictWriter(file, fieldnames=fields)
         writer.writeheader()
@@ -401,7 +486,6 @@ def build_comparison(
         encoding="utf-8",
     )
 
-    # Markdown report.
     lines = [
         "# evil-domains — source comparison",
         "",
@@ -462,7 +546,6 @@ def build_comparison(
         encoding="utf-8",
     )
 
-    # Keep a rolling history of daily source counts.
     history_path = COMPARISON / "comparison-history.json"
 
     if history_path.exists():
@@ -499,7 +582,9 @@ def build_happ_geosite(
     repo = Path("domain-list-community")
 
     if repo.exists():
-        subprocess.run(["rm", "-rf", str(repo)], check=True)
+        shutil.rmtree(repo)
+
+    log("Cloning v2fly/domain-list-community...")
 
     subprocess.run(
         [
@@ -515,11 +600,12 @@ def build_happ_geosite(
 
     data_dir = repo / "data"
 
-    # Preserve the full standard V2Fly GeoSite collection.
-    # Add our own categories to the same data directory.
+    # Full standard V2Fly GeoSite database with custom Happ categories.
     write_domain_file(data_dir / "evil-domains", evil_domains)
     write_domain_file(data_dir / "ru-blocked", ru_blocked)
     write_domain_file(data_dir / "category-geoblock-ru", roscom_domains)
+
+    log("Building full Happ GeoSite database...")
 
     subprocess.run(
         [
@@ -533,7 +619,62 @@ def build_happ_geosite(
         check=True,
     )
 
-    log("Happ GeoSite database built.")
+    # Legacy custom-only GeoSite database for OneXray.
+    custom_data = Path("geosite-data")
+
+    if custom_data.exists():
+        shutil.rmtree(custom_data)
+
+    custom_data.mkdir(parents=True, exist_ok=True)
+
+    write_domain_file(custom_data / "evil-domains", evil_domains)
+
+    log("Building legacy evil-domains.dat...")
+
+    subprocess.run(
+        [
+            "go",
+            "run",
+            "./",
+            "--datapath=../geosite-data",
+            "--outputdir=../output",
+            "--outputname=evil-domains.dat",
+        ],
+        cwd=repo,
+        check=True,
+    )
+
+    log("Happ and legacy GeoSite databases built.")
+
+
+def validate_artifacts() -> None:
+    required = [
+        "evil-domains.json",
+        "evil-domains.srs",
+        "evil-domains.dat",
+        "evil-domains-geoip.dat",
+        "evil-domains-happ.dat",
+        "geosite-raw.txt",
+        "geoip-raw.txt",
+        "build-report.json",
+        "comparison/comparison-report.md",
+        "comparison/comparison-report.json",
+        "comparison/source-statistics.csv",
+        "comparison/pairwise-overlap.csv",
+        "comparison/comparison-history.json",
+    ]
+
+    log("Validating generated artifacts...")
+
+    for name in required:
+        path = OUT / name
+
+        if not path.is_file() or path.stat().st_size == 0:
+            raise RuntimeError(f"Missing or empty artifact: {path}")
+
+        log(f"OK: {name} ({path.stat().st_size:,} bytes)")
+
+    log("All required artifacts are present.")
 
 
 def main() -> None:
@@ -641,16 +782,20 @@ def main() -> None:
     compile_srs(json_path, srs_path)
 
     # ---------------------------------------------------------
-    # 6. Comparison sources
+    # 6. Legacy GeoIP DAT
     # ---------------------------------------------------------
 
-    log("Collecting independent comparison sources...")
+    build_legacy_geoip_dat()
+
+    # ---------------------------------------------------------
+    # 7. Comparison sources
+    # ---------------------------------------------------------
+
+    log("Collecting comparison sources...")
 
     community = parse_text_domains(fetch(RUNET_COMMUNITY_URL))
     refilter = parse_text_domains(fetch(RUNET_REFILTER_URL))
 
-    # This is the RU-BLOCKED equivalent:
-    # Community Antifilter + Re:filter.
     runetfreedom_ru_blocked = community | refilter
 
     comparison_sources = {
@@ -667,7 +812,7 @@ def main() -> None:
     comparison_errors.update(optional_errors)
 
     # ---------------------------------------------------------
-    # 7. Happ-compatible GeoSite DAT
+    # 8. Happ and legacy GeoSite DAT
     # ---------------------------------------------------------
 
     build_happ_geosite(
@@ -677,7 +822,7 @@ def main() -> None:
     )
 
     # ---------------------------------------------------------
-    # 8. Comparison reports
+    # 9. Comparison reports
     # ---------------------------------------------------------
 
     build_comparison(
@@ -687,7 +832,7 @@ def main() -> None:
     )
 
     # ---------------------------------------------------------
-    # 9. Build report
+    # 10. Build report
     # ---------------------------------------------------------
 
     report = {
@@ -708,12 +853,20 @@ def main() -> None:
             "ru-blocked",
             "category-geoblock-ru",
         ],
+        "legacy_geosite": "evil-domains.dat",
+        "legacy_geoip": "evil-domains-geoip.dat",
     }
 
     (OUT / "build-report.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
+
+    # ---------------------------------------------------------
+    # 11. Validate all artifacts
+    # ---------------------------------------------------------
+
+    validate_artifacts()
 
     log(json.dumps(report, ensure_ascii=False, indent=2))
 
