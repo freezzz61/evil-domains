@@ -25,6 +25,33 @@ ROSCOM_BASE = (
 )
 ROSCOM_CATEGORIES = ["category-geoblock-ru.srs"]
 
+ROSCOM_REQUIRED_CATEGORIES = {
+    "apple",
+    "category-ads",
+    "category-geoblock-ru",
+    "category-ru",
+    "epicgames",
+    "escapefromtarkov",
+    "faceit",
+    "github",
+    "google-deepmind",
+    "google-play",
+    "microsoft",
+    "origin",
+    "pinterest",
+    "private",
+    "push",
+    "riot",
+    "steam",
+    "telegram",
+    "torrent",
+    "twitch",
+    "twitch-ads",
+    "whitelist",
+    "win-spy",
+    "youtube",
+}
+
 RUNET_BASE = (
     "https://raw.githubusercontent.com/"
     "runetfreedom/russia-blocked-geosite/release"
@@ -204,8 +231,7 @@ def add_itdog_file(path: str, domains: set[str]) -> int:
 def download_roscom_category(category: str) -> set[str]:
     import tempfile
 
-    import_path = f"{ROSCOM_BASE}/{category}"
-    data = fetch(import_path)
+    data = fetch(f"{ROSCOM_BASE}/{category}")
 
     with tempfile.TemporaryDirectory() as temp:
         srs_path = Path(temp) / "source.srs"
@@ -574,15 +600,77 @@ def build_comparison(
     log("Comparison reports generated.")
 
 
+def merge_domain_data(source_dir: Path, target_dir: Path) -> list[str]:
+    """Merge all RoscomVPN GeoSite source categories into V2Fly data."""
+
+    if not source_dir.is_dir():
+        raise RuntimeError(
+            f"RoscomVPN data directory is missing: {source_dir}"
+        )
+
+    merged = []
+
+    for source in sorted(source_dir.iterdir()):
+        if not source.is_file():
+            continue
+
+        target = target_dir / source.name
+
+        source_lines = source.read_text(
+            encoding="utf-8-sig"
+        ).splitlines()
+
+        if target.exists():
+            existing_lines = target.read_text(
+                encoding="utf-8-sig"
+            ).splitlines()
+
+            seen = set(existing_lines)
+
+            additions = [
+                line for line in source_lines
+                if line not in seen
+            ]
+
+            if additions:
+                with target.open("a", encoding="utf-8") as file:
+                    if existing_lines and existing_lines[-1]:
+                        file.write("\n")
+
+                    file.write("\n".join(additions) + "\n")
+        else:
+            target.write_text(
+                "\n".join(source_lines) + "\n",
+                encoding="utf-8",
+            )
+
+        merged.append(source.name)
+
+    if not merged:
+        raise RuntimeError(
+            "RoscomVPN data directory contains no category files"
+        )
+
+    return merged
+
+
 def build_happ_geosite(
     evil_domains: set[str],
     ru_blocked: set[str],
     roscom_domains: set[str],
-) -> None:
-    repo = Path("domain-list-community")
+) -> list[str]:
+    """Build full Happ GeoSite and legacy custom-only GeoSite."""
 
-    if repo.exists():
-        shutil.rmtree(repo)
+    repo = Path("domain-list-community")
+    roscom_repo = Path("roscomvpn-geosite")
+
+    for path in (repo, roscom_repo):
+        if path.exists():
+            shutil.rmtree(path)
+
+    # ---------------------------------------------------------
+    # 1. V2Fly standard categories
+    # ---------------------------------------------------------
 
     log("Cloning v2fly/domain-list-community...")
 
@@ -598,14 +686,104 @@ def build_happ_geosite(
         check=True,
     )
 
+    # ---------------------------------------------------------
+    # 2. RoscomVPN categories
+    # ---------------------------------------------------------
+
+    log("Cloning hydraponique/roscomvpn-geosite...")
+
+    subprocess.run(
+        [
+            "git",
+            "clone",
+            "--depth",
+            "1",
+            "--branch",
+            "master",
+            "https://github.com/hydraponique/roscomvpn-geosite.git",
+            str(roscom_repo),
+        ],
+        check=True,
+    )
+
     data_dir = repo / "data"
 
-    # Full standard V2Fly GeoSite database with custom Happ categories.
-    write_domain_file(data_dir / "evil-domains", evil_domains)
-    write_domain_file(data_dir / "ru-blocked", ru_blocked)
-    write_domain_file(data_dir / "category-geoblock-ru", roscom_domains)
+    roscom_categories = merge_domain_data(
+        roscom_repo / "data",
+        data_dir,
+    )
 
-    log("Building full Happ GeoSite database...")
+    roscom_category_names = {
+        Path(name).stem
+        for name in roscom_categories
+    }
+
+    missing_categories = (
+        ROSCOM_REQUIRED_CATEGORIES - roscom_category_names
+    )
+
+    if missing_categories:
+        raise RuntimeError(
+            "RoscomVPN source is missing required categories: "
+            + ", ".join(sorted(missing_categories))
+        )
+
+    log(
+        f"Merged {len(roscom_categories)} RoscomVPN categories."
+    )
+
+    # ---------------------------------------------------------
+    # 3. Custom categories
+    # ---------------------------------------------------------
+
+    write_domain_file(
+        data_dir / "evil-domains",
+        evil_domains,
+    )
+
+    write_domain_file(
+        data_dir / "ru-blocked",
+        ru_blocked,
+    )
+
+    # Extend category-geoblock-ru without overwriting
+    # its original RoscomVPN entries.
+
+    geoblock_path = data_dir / "category-geoblock-ru"
+
+    existing = set()
+
+    if geoblock_path.exists():
+        existing = set(
+            geoblock_path.read_text(
+                encoding="utf-8"
+            ).splitlines()
+        )
+
+    additions = [
+        f"domain:{domain}"
+        for domain in sorted(roscom_domains)
+    ]
+
+    with geoblock_path.open("a", encoding="utf-8") as file:
+        for entry in additions:
+            if entry not in existing:
+                file.write(entry + "\n")
+
+    custom_categories = [
+        "evil-domains",
+        "ru-blocked",
+        "category-geoblock-ru",
+    ]
+
+    # ---------------------------------------------------------
+    # 4. Build full Happ GeoSite
+    # ---------------------------------------------------------
+
+    log(
+        "Building Happ GeoSite: "
+        "V2Fly + RoscomVPN + custom categories..."
+    )
 
     subprocess.run(
         [
@@ -619,15 +797,24 @@ def build_happ_geosite(
         check=True,
     )
 
-    # Legacy custom-only GeoSite database for OneXray.
+    # ---------------------------------------------------------
+    # 5. Legacy custom-only GeoSite for OneXray
+    # ---------------------------------------------------------
+
     custom_data = Path("geosite-data")
 
     if custom_data.exists():
         shutil.rmtree(custom_data)
 
-    custom_data.mkdir(parents=True, exist_ok=True)
+    custom_data.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
-    write_domain_file(custom_data / "evil-domains", evil_domains)
+    write_domain_file(
+        custom_data / "evil-domains",
+        evil_domains,
+    )
 
     log("Building legacy evil-domains.dat...")
 
@@ -645,6 +832,10 @@ def build_happ_geosite(
     )
 
     log("Happ and legacy GeoSite databases built.")
+
+    return sorted(
+        set(roscom_category_names) | set(custom_categories)
+    )
 
 
 def validate_artifacts() -> None:
@@ -815,7 +1006,7 @@ def main() -> None:
     # 8. Happ and legacy GeoSite DAT
     # ---------------------------------------------------------
 
-    build_happ_geosite(
+    happ_categories = build_happ_geosite(
         evil_domains=domains,
         ru_blocked=runetfreedom_ru_blocked,
         roscom_domains=roscom_domains,
@@ -848,11 +1039,7 @@ def main() -> None:
         "unique_additions_by_source": unique_additions,
         "comparison_errors": comparison_errors,
         "happ_geosite": "evil-domains-happ.dat",
-        "happ_categories": [
-            "evil-domains",
-            "ru-blocked",
-            "category-geoblock-ru",
-        ],
+        "happ_categories": happ_categories,
         "legacy_geosite": "evil-domains.dat",
         "legacy_geoip": "evil-domains-geoip.dat",
     }
