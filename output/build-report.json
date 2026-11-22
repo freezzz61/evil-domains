@@ -1,8 +1,6 @@
 {
   "total_domains": 1697,
-  "total_ipv4_subnets_raw": 115,
-  "total_ipv4_subnets_collapsed": 115,
-  "domain_sources": {
+  "unique_additions_by_source": {
     "itdoginfo/Categories/anime.lst": 42,
     "itdoginfo/Categories/block.lst": 333,
     "itdoginfo/Categories/geoblock.lst": 462,
@@ -22,12 +20,5 @@
     "itdoginfo/Services/google_play.lst": 12,
     "hydraponique/category-geoblock-ru.srs": 450
   },
-  "subnet_sources": {
-    "itdoginfo/Subnets/IPv4/telegram.lst": 10,
-    "itdoginfo/Subnets/IPv4/meta.lst": 80,
-    "itdoginfo/Subnets/IPv4/twitter.lst": 10,
-    "itdoginfo/Subnets/IPv4/cloudflare.lst": 15
-  },
-  "contains_ipv4_cidr": true,
-  "contains_ipv6_cidr": false
+  "contains_ip_cidr": false
 }
