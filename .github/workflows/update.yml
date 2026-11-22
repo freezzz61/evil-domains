@@ -23,6 +23,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
 
       - name: Install sing-box
         run: |
@@ -38,6 +43,20 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python build.py
 
+      - name: Build geosite.dat
+        run: |
+          mkdir -p geosite-data
+          cp output/geosite-raw.txt geosite-data/evil-domains
+          
+          git clone --depth 1 https://github.com/v2fly/domain-list-community.git
+          cd domain-list-community
+          
+          go run ./ --datapath=../geosite-data
+          cp dlc.dat ../output/evil-domains.dat
+          cd ..
+          
+          rm -rf geosite-data domain-list-community output/geosite-raw.txt
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -50,5 +69,6 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add output/
           git diff --cached --quiet && echo "No changes to commit" && exit 0
-          git commit -m "chore: rebuild evil-domains ruleset"
+          git commit -m "chore: rebuild evil-domains ruleset and dat"
+          git pull --rebase origin main
           git push
