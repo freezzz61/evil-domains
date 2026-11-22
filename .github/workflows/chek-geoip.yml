@@ -1,0 +1,81 @@
+name: Check GeoIP DAT
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Clone decoder
+        run: |
+          git clone --depth 1 https://github.com/v2fly/geoip.git /tmp/geoip
+
+      - name: Decode GeoIP DAT
+        run: |
+          cat > /tmp/geoip-check.json <<EOF
+          {
+            "input": [
+              {
+                "type": "v2rayGeoIPDat",
+                "action": "add",
+                "args": {
+                  "uri": "$GITHUB_WORKSPACE/output/evil-domains-geoip.dat",
+                  "wantedList": ["telegram"]
+                }
+              }
+            ],
+            "output": [
+              {
+                "type": "text",
+                "action": "output",
+                "args": {
+                  "outputDir": "/tmp/decoded",
+                  "outputExtension": ".txt"
+                }
+              }
+            ]
+          }
+          EOF
+
+          cd /tmp/geoip
+          go run . -c /tmp/geoip-check.json
+
+      - name: Verify CIDRs
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import ipaddress
+
+          expected = {
+              str(ipaddress.ip_network(x.strip()))
+              for x in Path("output/geoip-raw.txt").read_text().splitlines()
+              if x.strip()
+          }
+
+          decoded_file = Path("/tmp/decoded/telegram.txt")
+          assert decoded_file.exists(), "telegram category missing"
+
+          actual = {
+              str(ipaddress.ip_network(x.strip()))
+              for x in decoded_file.read_text().splitlines()
+              if x.strip()
+          }
+
+          print("Expected:", len(expected))
+          print("Decoded:", len(actual))
+          print("Missing:", expected - actual)
+          print("Unexpected:", actual - expected)
+
+          assert expected == actual, "CIDR mismatch"
+          print("SUCCESS: all Telegram CIDRs verified")
+          PY
