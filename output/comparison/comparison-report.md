@@ -1,6 +1,6 @@
 # evil-domains — source comparison
 
-Generated: 2026-11-22T18:49:48.017166+00:00
+Generated: 2026-11-23T12:48:57.600307+00:00
 
 ## Source statistics
 
