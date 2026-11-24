@@ -1135,7 +1135,6 @@ domain:quicknode.com
 domain:qwant.com
 domain:radarr.servarr.com
 domain:radarr.video
-domain:rainbow6.com
 domain:ratatype.com
 domain:raycast-releases.com
 domain:raycast.com

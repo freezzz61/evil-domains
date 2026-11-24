@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-11-23T12:48:57.600307+00:00",
+  "generated_at": "2026-11-24T13:46:16.867532+00:00",
   "sources": {
     "evil_domains": 1697,
     "itdog": 1247,
     "refilter": 79947,
     "roscomvpn": 772,
-    "runetfreedom_antifilter_all": 1818834,
+    "runetfreedom_antifilter_all": 1823196,
     "runetfreedom_ru_blocked": 80076,
-    "russiafancylists_blacklist": 1837260,
-    "russiafancylists_geoblock": 1515
+    "russiafancylists_blacklist": 1841638,
+    "russiafancylists_geoblock": 1514
   },
   "unique_domains": {
     "itdog": 0,
@@ -16,9 +16,9 @@
     "runetfreedom_ru_blocked": 0,
     "runetfreedom_antifilter_all": 0,
     "refilter": 0,
-    "russiafancylists_blacklist": 14156,
+    "russiafancylists_blacklist": 14172,
     "evil_domains": 0,
-    "russiafancylists_geoblock": 1515
+    "russiafancylists_geoblock": 1514
   },
   "errors": {},
   "pairwise": [
@@ -49,10 +49,10 @@
       "source_a": "itdog",
       "source_b": "runetfreedom_antifilter_all",
       "domains_a": 1247,
-      "domains_b": 1818834,
+      "domains_b": 1823196,
       "intersection": 423,
       "only_a": 824,
-      "only_b": 1818411,
+      "only_b": 1822773,
       "jaccard_percent": 0.02
     },
     {
@@ -71,10 +71,10 @@
       "source_a": "itdog",
       "source_b": "russiafancylists_blacklist",
       "domains_a": 1247,
-      "domains_b": 1837260,
+      "domains_b": 1841638,
       "intersection": 655,
       "only_a": 592,
-      "only_b": 1836605,
+      "only_b": 1840983,
       "jaccard_percent": 0.04
     },
     {
@@ -104,10 +104,10 @@
       "source_a": "roscomvpn",
       "source_b": "runetfreedom_antifilter_all",
       "domains_a": 772,
-      "domains_b": 1818834,
+      "domains_b": 1823196,
       "intersection": 18,
       "only_a": 754,
-      "only_b": 1818816,
+      "only_b": 1823178,
       "jaccard_percent": 0.0
     },
     {
@@ -126,10 +126,10 @@
       "source_a": "roscomvpn",
       "source_b": "russiafancylists_blacklist",
       "domains_a": 772,
-      "domains_b": 1837260,
+      "domains_b": 1841638,
       "intersection": 132,
       "only_a": 640,
-      "only_b": 1837128,
+      "only_b": 1841506,
       "jaccard_percent": 0.01
     },
     {
@@ -148,11 +148,11 @@
       "source_a": "runetfreedom_ru_blocked",
       "source_b": "runetfreedom_antifilter_all",
       "domains_a": 80076,
-      "domains_b": 1818834,
+      "domains_b": 1823196,
       "intersection": 75806,
       "only_a": 4270,
-      "only_b": 1743028,
-      "jaccard_percent": 4.16
+      "only_b": 1747390,
+      "jaccard_percent": 4.15
     },
     {
       "group": "rkn",
@@ -170,11 +170,11 @@
       "source_a": "runetfreedom_ru_blocked",
       "source_b": "russiafancylists_blacklist",
       "domains_a": 80076,
-      "domains_b": 1837260,
+      "domains_b": 1841638,
       "intersection": 80076,
       "only_a": 0,
-      "only_b": 1757184,
-      "jaccard_percent": 4.36
+      "only_b": 1761562,
+      "jaccard_percent": 4.35
     },
     {
       "group": "rkn",
@@ -191,32 +191,32 @@
       "group": "rkn",
       "source_a": "runetfreedom_antifilter_all",
       "source_b": "refilter",
-      "domains_a": 1818834,
+      "domains_a": 1823196,
       "domains_b": 79947,
       "intersection": 75782,
-      "only_a": 1743052,
+      "only_a": 1747414,
       "only_b": 4165,
-      "jaccard_percent": 4.16
+      "jaccard_percent": 4.15
     },
     {
       "group": "rkn",
       "source_a": "runetfreedom_antifilter_all",
       "source_b": "russiafancylists_blacklist",
-      "domains_a": 1818834,
-      "domains_b": 1837260,
-      "intersection": 1818834,
+      "domains_a": 1823196,
+      "domains_b": 1841638,
+      "intersection": 1823196,
       "only_a": 0,
-      "only_b": 18426,
+      "only_b": 18442,
       "jaccard_percent": 99.0
     },
     {
       "group": "rkn",
       "source_a": "runetfreedom_antifilter_all",
       "source_b": "evil_domains",
-      "domains_a": 1818834,
+      "domains_a": 1823196,
       "domains_b": 1697,
       "intersection": 429,
-      "only_a": 1818405,
+      "only_a": 1822767,
       "only_b": 1268,
       "jaccard_percent": 0.02
     },
@@ -225,11 +225,11 @@
       "source_a": "refilter",
       "source_b": "russiafancylists_blacklist",
       "domains_a": 79947,
-      "domains_b": 1837260,
+      "domains_b": 1841638,
       "intersection": 79947,
       "only_a": 0,
-      "only_b": 1757313,
-      "jaccard_percent": 4.35
+      "only_b": 1761691,
+      "jaccard_percent": 4.34
     },
     {
       "group": "rkn",
@@ -246,10 +246,10 @@
       "group": "rkn",
       "source_a": "russiafancylists_blacklist",
       "source_b": "evil_domains",
-      "domains_a": 1837260,
+      "domains_a": 1841638,
       "domains_b": 1697,
       "intersection": 704,
-      "only_a": 1836556,
+      "only_a": 1840934,
       "only_b": 993,
       "jaccard_percent": 0.04
     }
