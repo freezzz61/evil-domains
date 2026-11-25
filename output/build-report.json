@@ -1,9 +1,16 @@
 {
-  "generated_at": "2026-11-24T13:46:16.902542+00:00",
+  "generated_at": "2026-11-25T04:09:57.282597+00:00",
   "total_domains": 1697,
   "itdog_domains": 1247,
   "roscomvpn_domains": 772,
   "runetfreedom_ru_blocked_domains": 80076,
+  "itdog_ipv4_cidrs": 116,
+  "itdog_ipv4_subnet_sources": [
+    "telegram.lst",
+    "meta.lst",
+    "twitter.lst",
+    "cloudflare.lst"
+  ],
   "telegram_cidrs": 14,
   "unique_additions_by_source": {
     "itdoginfo/Categories/anime.lst": 42,

@@ -1,0 +1,15 @@
+domain:android-fest.ru
+domain:courses61.znaniyamarket.com
+domain:drthai.ru
+domain:iphone-films.cc
+domain:jssi.ru
+domain:kladmarket.fanbb.ru
+domain:knigadom.online
+domain:knigohub.online
+domain:malosolka.su
+domain:ru.kinozona.net
+domain:rule34-videos.com
+domain:sfp-modules.ru
+domain:skladchic.net
+domain:zona-online.org
+domain:zontik.mobi
