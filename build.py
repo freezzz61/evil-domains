@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import csv
 import json
+import ipaddress
 import os
 import re
 import shutil
@@ -69,6 +70,14 @@ RFL_BLACKLIST_URL = f"{RFL_BASE}/blacklist/domains/full.lst"
 RFL_GEOBLOCK_URL = f"{RFL_BASE}/geoblock/full.lst"
 
 TELEGRAM_CIDR_URL = "https://core.telegram.org/resources/cidr.txt"
+
+# IPv4 subnet sources intentionally selected for Podkop remote_subnet_lists.
+ITDOG_SUBNET_SOURCES = (
+    "telegram.lst",
+    "meta.lst",
+    "twitter.lst",
+    "cloudflare.lst",
+)
 
 RUSSIA_INSIDE_EXCLUDED = {
     "telegram.lst",
@@ -256,6 +265,89 @@ def download_roscom_category(category: str) -> set[str]:
         parsed = json.loads(json_path.read_text(encoding="utf-8"))
 
     return extract_domains_from_json(parsed)
+
+
+def collect_itdog_ipv4_subnets() -> set[str]:
+    """Collect the selected itdog IPv4 subnet lists for Podkop."""
+    result: set[str] = set()
+
+    for filename in ITDOG_SUBNET_SOURCES:
+        source = f"Subnets/IPv4/{filename}"
+        raw = fetch(f"{ITDOG_RAW}/{source}")
+        found = 0
+
+        for line in raw.decode("utf-8-sig", errors="replace").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+
+            try:
+                network = ipaddress.ip_network(line, strict=False)
+            except ValueError as exc:
+                raise RuntimeError(
+                    f"Invalid CIDR in itdog source {source}: {line}"
+                ) from exc
+
+            if network.version != 4:
+                raise RuntimeError(
+                    f"Non-IPv4 prefix in IPv4 source {source}: {line}"
+                )
+
+            canonical = str(network)
+            if canonical not in result:
+                found += 1
+            result.add(canonical)
+
+        if found == 0:
+            raise RuntimeError(f"Subnet source is empty: {source}")
+
+        log(f"itdog {filename}: {found} IPv4 CIDRs")
+
+    if not result:
+        raise RuntimeError("No IPv4 CIDRs collected from itdog")
+
+    log(f"evil-subnets total: {len(result)} unique IPv4 CIDRs")
+    return result
+
+
+def write_subnet_file(path: Path, subnets: set[str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as file:
+        for subnet in sorted(
+            subnets,
+            key=lambda value: (
+                int(ipaddress.ip_network(value).network_address),
+                ipaddress.ip_network(value).prefixlen,
+            ),
+        ):
+            file.write(f"{subnet}\n")
+
+
+def build_subnets_rule_set(subnets: set[str]) -> None:
+    """Build a standalone Sing-box ip_cidr rule-set for Podkop."""
+    json_path = OUT / "evil-subnets.json"
+    srs_path = OUT / "evil-subnets.srs"
+    txt_path = OUT / "evil-subnets.txt"
+
+    payload = {
+        "version": 3,
+        "rules": [{"ip_cidr": sorted(subnets)}],
+    }
+
+    json_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    write_subnet_file(txt_path, subnets)
+    compile_srs(json_path, srs_path)
+
+    if srs_path.stat().st_size == 0:
+        raise RuntimeError("Generated evil-subnets.srs is empty")
+
+    log(
+        f"Built evil-subnets.srs: {len(subnets)} IPv4 CIDRs, "
+        f"{srs_path.stat().st_size:,} bytes"
+    )
 
 
 def write_domain_file(path: Path, domains: set[str]) -> None:
@@ -842,6 +934,9 @@ def validate_artifacts() -> None:
     required = [
         "evil-domains.json",
         "evil-domains.srs",
+        "evil-subnets.json",
+        "evil-subnets.srs",
+        "evil-subnets.txt",
         "evil-domains.dat",
         "evil-domains-geoip.dat",
         "evil-domains-happ.dat",
@@ -967,19 +1062,26 @@ def main() -> None:
                 file.write(f"{line}\n")
 
     # ---------------------------------------------------------
-    # 5. Sing-box SRS
+    # 5. Standalone IPv4 subnet rule-set for Podkop
+    # ---------------------------------------------------------
+
+    itdog_subnets = collect_itdog_ipv4_subnets()
+    build_subnets_rule_set(itdog_subnets)
+
+    # ---------------------------------------------------------
+    # 6. Sing-box domain SRS
     # ---------------------------------------------------------
 
     compile_srs(json_path, srs_path)
 
     # ---------------------------------------------------------
-    # 6. Legacy GeoIP DAT
+    # 7. Legacy GeoIP DAT
     # ---------------------------------------------------------
 
     build_legacy_geoip_dat()
 
     # ---------------------------------------------------------
-    # 7. Comparison sources
+    # 8. Comparison sources
     # ---------------------------------------------------------
 
     log("Collecting comparison sources...")
@@ -1003,7 +1105,7 @@ def main() -> None:
     comparison_errors.update(optional_errors)
 
     # ---------------------------------------------------------
-    # 8. Happ and legacy GeoSite DAT
+    # 9. Happ and legacy GeoSite DAT
     # ---------------------------------------------------------
 
     happ_categories = build_happ_geosite(
@@ -1013,7 +1115,7 @@ def main() -> None:
     )
 
     # ---------------------------------------------------------
-    # 9. Comparison reports
+    # 10. Comparison reports
     # ---------------------------------------------------------
 
     build_comparison(
@@ -1023,7 +1125,7 @@ def main() -> None:
     )
 
     # ---------------------------------------------------------
-    # 10. Build report
+    # 11. Build report
     # ---------------------------------------------------------
 
     report = {
@@ -1032,6 +1134,8 @@ def main() -> None:
         "itdog_domains": len(itdog_domains),
         "roscomvpn_domains": len(roscom_domains),
         "runetfreedom_ru_blocked_domains": len(runetfreedom_ru_blocked),
+        "itdog_ipv4_cidrs": len(itdog_subnets),
+        "itdog_ipv4_subnet_sources": list(ITDOG_SUBNET_SOURCES),
         "telegram_cidrs": len([
             line for line in cidr_raw.splitlines()
             if line.strip() and not line.strip().startswith("#")
@@ -1050,7 +1154,7 @@ def main() -> None:
     )
 
     # ---------------------------------------------------------
-    # 11. Validate all artifacts
+    # 12. Validate all artifacts
     # ---------------------------------------------------------
 
     validate_artifacts()
