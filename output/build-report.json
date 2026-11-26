@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-11-25T12:59:40.031558+00:00",
+  "generated_at": "2026-11-26T12:39:01.460666+00:00",
   "total_domains": 1697,
   "itdog_domains": 1247,
   "roscomvpn_domains": 772,
-  "runetfreedom_ru_blocked_domains": 80076,
+  "runetfreedom_ru_blocked_domains": 79391,
   "itdog_ipv4_cidrs": 116,
   "itdog_ipv4_subnet_sources": [
     "telegram.lst",

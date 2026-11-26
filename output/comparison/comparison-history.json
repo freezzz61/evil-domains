@@ -90,5 +90,28 @@
       "evil_domains": 0,
       "russiafancylists_geoblock": 2193
     }
+  },
+  {
+    "date": "2026-11-26",
+    "sources": {
+      "evil_domains": 1697,
+      "itdog": 1247,
+      "refilter": 79263,
+      "roscomvpn": 772,
+      "runetfreedom_antifilter_all": 1828235,
+      "runetfreedom_ru_blocked": 79391,
+      "russiafancylists_blacklist": 1850547,
+      "russiafancylists_geoblock": 2193
+    },
+    "unique_domains": {
+      "itdog": 0,
+      "roscomvpn": 0,
+      "runetfreedom_ru_blocked": 0,
+      "runetfreedom_antifilter_all": 12,
+      "refilter": 0,
+      "russiafancylists_blacklist": 18739,
+      "evil_domains": 0,
+      "russiafancylists_geoblock": 2193
+    }
   }
 ]
